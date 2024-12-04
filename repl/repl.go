@@ -1,10 +1,11 @@
 package repl
 
 import (
-	"bufio"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/peterh/liner"
 	"github.com/syedazeez337/monkey-interpreter/lexer"
 	"github.com/syedazeez337/monkey-interpreter/token"
 )
@@ -12,21 +13,53 @@ import (
 const PROMT = ">>"
 
 func Start(in io.Reader, out io.Writer) {
-	scanner := bufio.NewScanner(in)
+
+	line := liner.NewLiner()
+	defer line.Close()
+
+	line.SetCtrlCAborts(true)
+	line.SetCompleter(
+		func(line string) (c []string) {
+			if line == "pri" {
+				c = append(c, "print", "println")
+			}
+			return
+		})
+
+	// scanner := bufio.NewScanner(in)
 
 	for {
-		fmt.Printf(PROMT)
-		scanned := scanner.Scan()
-		if !scanned {
-			return
+		input, err := line.Prompt("mnky>>")
+		if err != nil {
+			if err == liner.ErrPromptAborted {
+				fmt.Println("\nAborted...")
+				break
+			}
+
+			fmt.Fprintln(os.Stderr, "Error reading line: ", err)
 		}
 
-		line := scanner.Text()
+		if input == "exit" {
+			fmt.Println("Goodbye...")
+			break
+		}
 
-		l := lexer.New(line)
+		/*
+			fmt.Printf(PROMT)
+			scanned := scanner.Scan()
+			if !scanned {
+				return
+			}
+		*/
+
+		// line := scanner.Text()
+
+		l := lexer.New(input)
 
 		for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
 			fmt.Printf("%+v\n", tok)
 		}
+
+		line.AppendHistory(input)
 	}
 }
